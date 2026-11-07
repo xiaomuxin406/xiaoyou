@@ -8,7 +8,31 @@ import {VoicePacks} from '../src/VoicePacks';
 import App from '../src/App';
 
 beforeEach(()=>{vi.spyOn(HTMLMediaElement.prototype,'pause').mockImplementation(()=>{});});
-afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();});
+afterEach(()=>{cleanup();vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals();});
+
+it('ends an unresponsive synthesis request with an actionable timeout',async()=>{
+ vi.useFakeTimers();let signal:AbortSignal|undefined;
+ vi.stubGlobal('fetch',vi.fn(async(url,options)=>{
+  if(url==='/api/tts/speak'){signal=options.signal;return new Promise(()=>{});}
+  return {ok:true,json:async()=>({installed:true,busy:true,phase:'synthesizing'})};
+ }));
+ const {result}=renderHook(()=>useVoice({onCommand:()=>{},speechEnabled:true,busy:false,voicePackId:'reference'}));
+ await act(async()=>result.current.speak('你好。'));
+ expect(signal).toBeDefined();
+ await act(async()=>vi.advanceTimersByTimeAsync(330000));
+ expect(signal?.aborted).toBe(true);expect(result.current.speaking).toBe(false);
+ expect(result.current.error).toMatch(/超时/);
+});
+
+it('shows the engine phase and elapsed time during synthesis',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async(url)=>{
+  if(url==='/api/tts/speak')return new Promise(()=>{});
+  return {ok:true,json:async()=>({installed:true,busy:true,phase:'loading-model',elapsedSeconds:12})};
+ }));
+ const {result}=renderHook(()=>useVoice({onCommand:()=>{},speechEnabled:true,busy:false,voicePackId:'reference'}));
+ act(()=>result.current.speak('你好。'));
+ await waitFor(()=>expect(result.current.status).toMatch(/加载.*模型.*12.*秒/));
+});
 it('marks local synthesis as speaking before the response and aborts it when interrupted',async()=>{
  let synthesisSignal:AbortSignal|undefined;
  vi.stubGlobal('fetch',vi.fn(async(url,options)=>{

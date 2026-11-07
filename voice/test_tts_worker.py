@@ -35,6 +35,7 @@ class ProtocolTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             messages = [json.loads(line) for line in result.stdout.splitlines()]
             self.assertEqual(messages[0]["type"], "ready")
+            messages = [message for message in messages if message.get("type") != "progress"]
             self.assertEqual(len(messages), 5)
             self.assertFalse(messages[1]["ok"])
             self.assertEqual(messages[2]["id"], "一")

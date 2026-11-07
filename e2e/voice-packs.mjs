@@ -34,6 +34,10 @@ try{
  assert.equal(syntheses,1);
  await page.getByRole('button',{name:'停止试听',exact:true}).click();
  await page.getByRole('button',{name:'合成试听',exact:true}).waitFor();
+ await page.getByRole('button',{name:'合成试听',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('.voice-actions [role="status"]')?.textContent==='小优正在说话');
+ assert.equal(syntheses,1,'identical completed speech should play from the local cache');
+ await page.getByRole('button',{name:'停止试听',exact:true}).click();
  await page.getByRole('button',{name:'保存设置',exact:true}).click();
  await page.reload();await page.getByRole('button',{name:'打开设置'}).click();
  await page.getByLabel('朗读音色').waitFor();assert.equal(await page.getByLabel('朗读音色').inputValue(),selected);
@@ -48,5 +52,5 @@ try{
  await page.getByRole('option',{name:'新增音色.mp3',exact:true}).waitFor({state:'attached'});
  await page.getByLabel('朗读音色').scrollIntoViewIfNeeded();
  await page.screenshot({path:'.runtime/voice-packs-settings.png'});
- console.log('PASS production UI/API upload, reference edit, synthesized playback, stop, persisted selection, directory auto-switch; fixture engine used');
+ console.log('PASS production UI/API upload, reference edit, synthesized playback, cached repeat, stop, persisted selection, directory auto-switch; fixture engine used');
 }finally{await browser.close();await service.close();await rm(dir,{recursive:true,force:true,maxRetries:10,retryDelay:100});}

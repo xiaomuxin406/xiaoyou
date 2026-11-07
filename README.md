@@ -10,6 +10,74 @@ Windows 10/11 x64，Electron 桌面程序与本机网页共用界面。启动全
 
 “停止朗读”会取消正在合成或播放的声音；“中断思考”继续停止模型请求与语音。语音包最多 15 MiB，采用前 12 秒作为参考，建议清晰单人录音；识别失败可手动补充参考文字。用户后续导入的录音、模型缓存与生成语音默认不进 Git。模型权重采用 CC-BY-NC-4.0，仅限非商业使用，代码与模型许可证说明见 [voice/README.md](voice/README.md)。
 
+### 安装、下载语音引擎
+
+**只想立即听到中文回复：**设置 → 小优的音色 → 朗读音色选择 **系统中文朗读**，勾选 **中文语音朗读**，再点 **保存设置**。此模式使用 Windows 中文声音，不需要 F5-TTS、Python 或克隆模型。如 Windows 缺少中文声音，可在“设置 → 时间和语言 → 语言和区域 → 中文 → 语言选项”安装语音组件。
+
+**要使用上传 MP3 的音色：**
+
+1. 从 [Python 官方 Windows 下载页](https://www.python.org/downloads/windows/) 下载 **64 位 Python 3.10、3.11 或 3.12** 安装器，推荐 3.10。安装时勾选 **Add Python to PATH** 和 Python Launcher。此版本不支持 Python 3.13 及更高版本。
+2. 打开 **小优 1.0.0 → 设置 → 小优的音色**，点击 **安装本地 F5-TTS 引擎**。保持联网，等待“已安装”。程序在自己的数据目录创建独立环境，下载 PyTorch、音频处理依赖和 F5-TTS，不需要管理员权限。
+3. 安装引擎与下载模型是两个步骤。“已安装”表示 Python 依赖就绪；首次点击 **合成试听** 仍会从 Hugging Face 下载 F5 模型和 Vocos 声码器，合计约 1.4 GB。Python 依赖也需要额外数 GB 磁盘空间，建议预留至少 10 GB。
+4. 下载并加载完成后，音色合成在本机运行。界面显示启动、模型下载/加载、合成阶段及耗时；“正在合成”还没有开始播放。CPU 需要明显长于音频时长的计算时间，本机短句首次测试约 1–2 分钟，并非所有电脑都能在该时间内完成。
+5. 点击 **保存设置**。安装按钮自动选用新建环境，Python 路径通常可留空。如果使用已有 F5 环境，填写该环境的 `python.exe` 完整路径并保存，再刷新引擎状态；不要填写 Python 安装目录或脚本文件。
+
+便携版默认数据目录是 `%APPDATA%\xiaoyou-agent`；实际位置以设置里的“打开数据目录”为准。引擎为 `<数据目录>\.runtime\tts-env\Scripts\python.exe`，模型为 `<数据目录>\.runtime\tts-models\`。源码运行时数据目录为项目根目录。当前开发电脑的已安装环境可填写 `D:\codex项目\小优\.runtime\tts-env\Scripts\python.exe`；此路径只适用于这台电脑，不要复制到其他电脑的设置。
+
+源码用户也可在项目根目录运行以下 PowerShell 命令，提前安装依赖并下载模型：
+
+```powershell
+$xyTtsProject = (Get-Location).Path
+powershell -NoProfile -ExecutionPolicy Bypass -File .\voice\install-tts.ps1 `
+  -TargetDirectory (Join-Path $xyTtsProject '.runtime\tts-env') `
+  -CacheDirectory (Join-Path $xyTtsProject '.runtime\tts-models') `
+  -DownloadModels
+```
+
+如果依赖已经安装，只提前下载和检查模型，不必重新安装：
+
+```powershell
+.\.runtime\tts-env\Scripts\python.exe -u .\voice\tts_worker.py `
+  --vosk-model .\voice\models\vosk-model-small-cn-0.22 `
+  --cache-dir .\.runtime\tts-models --download-models
+```
+
+依赖下载来源为 [PyPI](https://pypi.org/)、[PyTorch 官方源](https://download.pytorch.org/whl/cpu)；模型来源为 [F5-TTS](https://huggingface.co/SWivid/F5-TTS/tree/main/F5TTS_v1_Base) 和 [Vocos](https://huggingface.co/charactr/vocos-mel-24khz/tree/main)。网络受限时可以将官方 `model_1250000.safetensors`、`vocab.txt`、Vocos 的 `config.yaml` 和 `pytorch_model.bin` 完整下载后，按下面名称放置。前者约 1.35 GB，声码器约 54 MB；不要使用未完成的下载。
+
+```text
+<数据目录>/.runtime/tts-models/pretrained/
+├─ f5-model.safetensors        ← model_1250000.safetensors 重命名
+├─ vocab.txt
+└─ vocos/
+   ├─ config.yaml
+   └─ pytorch_model.bin
+```
+
+### 导入和使用语音包
+
+1. 在设置中勾选 **中文语音朗读**，确认引擎“已安装”。
+2. 点击 **导入 MP3 音色**，选择有效 MP3，最大 15 MiB。建议 6–12 秒清晰单人说话、没有音乐和其他人声；至少 1 秒，较长录音只用前 12 秒。录音用于参考音色，不能直接保证任意录音都能得到相同质量。
+3. 导入后自动选中该音色并识别参考文字。点击 **原始参考音频** 播放，再核对 **参考音频中的原文**，有错字或缺字时修改并点击 **保存参考文字**。这里填写录音实际说出的内容；要让小优说的新句子填在下方“合成试听文字”。
+4. 点击 **合成试听**，等待阶段提示从合成变为播放。需要中断时点击 **停止试听**。**原始参考音频**只播放上传录音，**合成试听**会用所选音色生成新的文字语音。
+5. 点击 **保存设置** 后关闭设置。以后新的助手回复和启动问候使用选中的音色；可随时切换回系统中文朗读。语音包选择不会补读已有对话。
+
+也可以将 MP3 放进设置显示的 **音色保存在本机** 目录。默认便携版路径为 `%APPDATA%\xiaoyou-agent\project\voice-packs\`，源码版为 `<项目>\voice-packs\`。运行期间约每 5 秒发现新文件，成功识别后自动选用；同内容文件按哈希去重。失败文件不会替换当前音色。切换项目目录后，需要使用新项目中的语音包。
+
+指定的初始录音已预置为 `ttsmaker-file-2026-11-7-20-30-54.mp3`，参考原文是“你好，很高兴认识你。接下来，请录入我的声音吧。”。已成功合成的相同文字会按音色和参考文字在本机缓存，再次播放无需重新推理；修改参考文字会重新生成。缓存位于 `<项目>\.runtime\voice-packs\speech\`，可在退出小优后删除该目录释放空间，原始 MP3 不受影响。
+
+### 语音问题排查
+
+| 情况 | 处理方法 |
+| --- | --- |
+| 提示引擎未安装 | 点击安装；已有环境则填写其 `python.exe` 路径，保存后刷新状态。基础 Python 本身不等于已装 F5 引擎。 |
+| 长时间在下载或加载模型 | 首次需完整下载大模型；检查网络和模型缓存，或按上面的目录手动放入官方完整文件。 |
+| 长时间在合成 | 查看阶段和耗时；CPU 克隆较慢，先用十几个字测试。超过 5 分钟会终止并提示超时；可停止后选择系统中文朗读。停止会释放模型，下次克隆要重新加载。 |
+| 显示正在说话但听不到 | 先试听原始 MP3，检查 Windows 输出设备、音量和小优的应用音量；网页需点击按钮以允许播放。原音有声而合成无声时，检查参考文字是否与录音一致。 |
+| 参考文字未识别出来 | 填写这段参考录音的实际原文，保存后再合成。静音、损坏或过短文件应更换录音。 |
+| 合成音色不清晰或不自然 | 使用单人、无音乐、清晰的 6–12 秒录音，并逐字校正参考文字。 |
+
+请启动 `Xiaoyou-1.0.0-win-x64.exe`；旧版 `0.1.2` 没有此克隆功能。语音引擎不会提高 Windows 账户权限。参考录音和合成文件保存在本机，后续导入的个人录音、引擎、模型、合成缓存均不随 Git 提交。
+
 ## 直接使用
 
 打开 `release/Xiaoyou-1.0.0-win-x64.exe`（便携版）。包内已携带中文 Vosk 模型和语音辅助程序，基础对话、唤醒及系统朗读不需要安装 Node 或 Python；克隆音色需要按上文安装独立 Python 引擎。首次解压启动可能需要片刻。当前产物未代码签名。

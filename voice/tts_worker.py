@@ -38,8 +38,8 @@ def local_model_options(cache):
     return options
 
 
-def emit(message):
-    print(json.dumps(message, ensure_ascii=False, allow_nan=False), flush=True)
+def emit(message, output=None):
+    print(json.dumps(message, ensure_ascii=False, allow_nan=False), file=output or sys.stdout, flush=True)
 
 
 def configure_cache(directory):
@@ -112,12 +112,13 @@ def normalize_audio(source, output):
 
 
 class Worker:
-    def __init__(self, vosk_model, cache, device="cpu"):
+    def __init__(self, vosk_model, cache, device="cpu", progress=None):
         self.vosk_path = Path(vosk_model).resolve()
         self.cache = cache
         self.device = device
         self.vosk_model = None
         self.f5 = None
+        self.progress = progress or (lambda phase: None)
 
     def transcribe(self, audio_path):
         import numpy as np
@@ -152,6 +153,8 @@ class Worker:
 
     def load_f5(self):
         if self.f5 is None:
+            options = local_model_options(self.cache)
+            self.progress("loading-model" if "ckpt_file" in options and "vocoder_local_path" in options else "downloading-models")
             configure_ffmpeg()
             import torch
             from f5_tts.api import F5TTS
@@ -165,16 +168,18 @@ class Worker:
             print("正在加载本地 F5-TTS 模型；首次使用可能需要下载模型文件。", file=sys.stderr, flush=True)
             self.f5 = F5TTS(model="F5TTS_v1_Base", device=device,
                             hf_cache_dir=str(self.cache / "huggingface/hub"),
-                            **local_model_options(self.cache))
+                            **options)
         return self.f5
 
     def handle(self, message):
         operation = message.get("op")
         if operation == "prepare":
+            self.progress("preparing-reference")
             source = Path(required_text(message, "input")).resolve(strict=True)
             output = Path(required_text(message, "output")).resolve()
             info = normalize_audio(source, output)
             try:
+                self.progress("recognizing-reference")
                 return {"transcript": self.transcribe(output), **info}
             except Exception as exc:
                 # A valid recording remains usable when automatic ASR cannot
@@ -199,9 +204,11 @@ class Worker:
             temporary = output.with_name(output.stem + "." + uuid.uuid4().hex + ".tmp.wav")
             try:
                 model = self.load_f5()
+                self.progress("synthesizing")
                 model.infer(ref_file=str(reference), ref_text=transcript, gen_text=text,
                             nfe_step=32, file_wave=str(temporary),
                             show_info=lambda *values: print(*values, file=sys.stderr, flush=True))
+                self.progress("saving-audio")
                 result = sf.info(str(temporary))
                 if result.frames == 0:
                     raise ValueError("语音模型未生成有效音频")
@@ -230,7 +237,10 @@ def main():
     parser.add_argument("--download-models", action="store_true", help="Load/download F5 models, then exit")
     args = parser.parse_args()
     cache = configure_cache(args.cache_dir)
-    worker = Worker(args.vosk_model, cache, args.device)
+    protocol_output = sys.stdout
+    request_id = None
+    worker = Worker(args.vosk_model, cache, args.device,
+                    progress=lambda phase: emit({"type": "progress", "id": request_id, "phase": phase}, protocol_output))
     if args.download_models:
         try:
             with contextlib.redirect_stdout(sys.stderr):

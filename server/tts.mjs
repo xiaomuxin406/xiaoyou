@@ -9,7 +9,8 @@ const execute=promisify(execFile);
 const dependencyProbe=`import importlib.util,json
 names=['f5_tts','torch','torchaudio','soundfile','vosk','scipy','imageio_ffmpeg']
 print(json.dumps([name for name in names if importlib.util.find_spec(name) is None]))`;
-const stopped=()=>Error('已停止语音生成');
+const stopped=()=>Object.assign(Error('已停止语音生成'),{name:'AbortError'});
+const failureText=error=>error?.name==='AbortError'?'':error.message;
 
 export class TtsEngine {
  constructor({root,dataDir,getSettings,modelPath,log=()=>{}}){
@@ -17,6 +18,7 @@ export class TtsEngine {
   this.child=null;this.workerPython='';this.starting=null;this.epoch=0;this.closed=false;
   this.pending=new Map();this.queue=Promise.resolve();this.probes=new Map();
   this.installing=false;this.progress='';this.error='';this.installer=null;
+  this.activeRequest=null;this.phase='idle';
  }
 
  async selection(){
@@ -54,7 +56,8 @@ export class TtsEngine {
  async status(){
   const installed=await this.installation();
   if(this.child&&(!installed.installed||this.workerPython!==installed.python))this.cancel();
-  return {installed:installed.installed,installing:this.installing,busy:this.pending.size>0||!!this.starting,
+  return {installed:installed.installed,installing:this.installing,busy:!!this.activeRequest||this.pending.size>0||!!this.starting,
+   phase:this.phase,elapsedSeconds:this.activeRequest?Math.floor((Date.now()-this.activeRequest.startedAt)/1000):0,
    progress:this.progress,error:installed.error||this.error||undefined,pythonPath:installed.python};
  }
 
@@ -82,7 +85,7 @@ export class TtsEngine {
    if(failed)return;failed=true;clearTimeout(timer);lines.close();readyReject(error);
    // Requests belong to their child: an old close event must not affect its replacement.
    for(const [id,pending] of this.pending){if(pending.child===child){this.pending.delete(id);pending.reject(error);}}
-   if(this.child===child){this.child=null;this.workerPython='';this.error=error.message;}
+   if(this.child===child){this.child=null;this.workerPython='';this.error=failureText(error);}
    if(this.starting?.child===child)this.starting=null;
   };
   child.stderr.on('data',chunk=>{diagnostic=chunk.toString('utf8').trim().slice(-1000);if(this.child===child)this.progress=diagnostic;});
@@ -97,6 +100,10 @@ export class TtsEngine {
    }
    const pending=this.pending.get(reply.id);
    if(!pending||pending.child!==child)return;
+   if(reply.type==='progress'){
+    if(['preparing-reference','recognizing-reference','downloading-models','loading-model','synthesizing','saving-audio'].includes(reply.phase))this.phase=reply.phase;
+    return;
+   }
    this.pending.delete(reply.id);
    reply.ok?pending.resolve(reply):pending.reject(Error(reply.error||'语音处理失败'));
   });
@@ -105,12 +112,14 @@ export class TtsEngine {
   return promise;
  }
 
- request(message,{signal,timeout=15*60*1000}={}){
+ request(message,{signal,timeout=5*60*1000}={}){
   let resolve,reject,settled=false,started=false,child,timer,id;
+  const active={startedAt:0};
   const result=new Promise((yes,no)=>{resolve=yes;reject=no;});
   const finish=(fn,value)=>{
    if(settled)return;settled=true;clearTimeout(timer);signal?.removeEventListener('abort',abort);
    if(id&&this.pending.get(id)?.child===child)this.pending.delete(id);
+   if(this.activeRequest===active){this.activeRequest=null;this.phase='idle';}
    fn(value);
   };
   const abort=()=>{if(started)this.cancel();finish(reject,stopped());};
@@ -119,16 +128,17 @@ export class TtsEngine {
   const task=async()=>{
    if(settled)return;
    started=true;
-   timer=setTimeout(()=>{const error=Error('语音处理超时');this.error=error.message;this.cancel(error);finish(reject,error);},timeout);
+   active.startedAt=Date.now();this.activeRequest=active;this.phase='starting';this.error='';
+   timer=setTimeout(()=>{const error=Error('语音处理超时，请缩短文字或切换系统中文朗读后重试');this.error=error.message;this.cancel(error);finish(reject,error);},timeout);
    try{
     child=await this.start({signal});
     if(settled||signal?.aborted)return;
     id=randomUUID();
-    this.pending.set(id,{child,resolve:value=>{this.error='';finish(resolve,value);},reject:error=>{this.error=error.message;finish(reject,error);}});
+    this.pending.set(id,{child,resolve:value=>{this.error='';finish(resolve,value);},reject:error=>{this.error=failureText(error);finish(reject,error);}});
     child.stdin.write(JSON.stringify({...message,id})+'\n',error=>{
      if(error&&this.pending.get(id)?.child===child){this.pending.delete(id);finish(reject,error);}
     });
-   }catch(error){if(!settled){this.error=error.message;finish(reject,error);}}
+   }catch(error){if(!settled){this.error=failureText(error);finish(reject,error);}}
    return result;
   };
   this.queue=this.queue.catch(()=>{}).then(task).catch(()=>{});

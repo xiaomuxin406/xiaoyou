@@ -60,6 +60,17 @@ it('discovers a new MP3 from the voice pack directory and auto selects exactly o
  const second=await(await s.api('/api/voice-packs')).json();expect(second.selectedId).toBe('system');expect(second.packs).toHaveLength(1);
 });
 
+it('reuses completed speech and regenerates it after reference text changes',async()=>{
+ const s=await setup();const {pack}=await(await s.api('/api/voice-packs/import?name=voice.mp3',Buffer.from('voice'),'POST')).json();
+ const wave=await readFile('voice-packs/builtin.wav');
+ s.runtime.tts.request=async input=>{s.calls.push(input);await writeFile(input.output,wave);return {sampleRate:24000,duration:5.256};};
+ const speak=async()=>{const response=await s.api('/api/tts/speak',{text:'主人，今天一起完成计划。',voicePackId:pack.id});expect(response.status).toBe(200);expect(Buffer.from(await response.arrayBuffer())).toEqual(wave);};
+ await speak();await speak();
+ expect(s.calls.filter(c=>c.op==='infer')).toHaveLength(1);
+ await s.api('/api/voice-packs/'+pack.id,{transcript:'新的参考文字。'},'PATCH');
+ await speak();expect(s.calls.filter(c=>c.op==='infer')).toHaveLength(2);
+});
+
 it('resets an unavailable cloned voice when switching project directories and keeps settings saveable',async()=>{
  const s=await setup();
  const {pack}=await(await s.api('/api/voice-packs/import?name=old.mp3',Buffer.from('old voice'),'POST')).json();

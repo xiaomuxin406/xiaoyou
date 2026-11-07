@@ -30,5 +30,17 @@ export class VoicePacks {
  async find(id){if(typeof id!=='string'||!/^[a-f0-9]{24}$/.test(id))throw Error('语音包标识无效');const record=(await this.records()).find(p=>p.id===id);if(!record)throw Error('语音包不存在，请重新导入');return record;}
  async update(id,transcript){return this.serial(async()=>{await this.find(id);if(typeof transcript!=='string'||!transcript.trim()||transcript.length>2000)throw Error('参考文字必须为 1–2000 字符');const records=await this.records();const record=records.find(p=>p.id===id);record.transcript=transcript.trim();record.status='ready';delete record.error;await this.save(records);return record;});}
  async audio(id){await this.find(id);return readFile(path.join(this.cache,id+'.mp3'));}
- async speak(id,text,signal){const pack=await this.find(id);if(typeof text!=='string'||!text.trim()||text.length>6000)throw Error('合成文字必须为 1–6000 字符');if(!pack.transcript)throw Error('请先校正语音包的参考文字');const output=path.join(this.cache,randomUUID()+'.wav');try{await this.engine.request({op:'infer',reference:path.join(this.cache,id+'.wav'),transcript:pack.transcript,text:text.trim(),output},{signal});signal?.throwIfAborted();return await readFile(output);}finally{await rm(output,{force:true});}}
+ async speak(id,text,signal){
+  const pack=await this.find(id);if(typeof text!=='string'||!text.trim()||text.length>6000)throw Error('合成文字必须为 1–6000 字符');if(!pack.transcript)throw Error('请先校正语音包的参考文字');signal?.throwIfAborted();
+  const key=createHash('sha256').update(JSON.stringify(['f5-v1-base-32-v1',id,pack.transcript,text.trim()])).digest('hex');
+  const cache=path.join(this.cache,'speech'),saved=path.join(cache,key+'.wav');
+  const isWave=data=>data.length>44&&data.toString('ascii',0,4)==='RIFF'&&data.toString('ascii',8,12)==='WAVE';
+  try{const data=await readFile(saved);if(isWave(data)){signal?.throwIfAborted();return data;}}catch(e){if(e.name==='AbortError')throw e;}
+  const output=path.join(this.cache,randomUUID()+'.wav');
+  try{
+   await this.engine.request({op:'infer',reference:path.join(this.cache,id+'.wav'),transcript:pack.transcript,text:text.trim(),output},{signal});signal?.throwIfAborted();const data=await readFile(output);
+   if(isWave(data)){await mkdir(cache,{recursive:true});await copyFile(output,saved);}
+   signal?.throwIfAborted();return data;
+  }finally{await rm(output,{force:true});}
+ }
 }

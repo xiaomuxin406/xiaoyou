@@ -15,6 +15,7 @@ print(json.dumps({'type':'ready'}),flush=True)
 for line in sys.stdin:
     message=json.loads(line)
     if message.get('op')=='crash': sys.exit(7)
+    if message.get('op')=='progress': print(json.dumps({'type':'progress','id':message['id'],'phase':'synthesizing'}),flush=True)
     time.sleep(message.get('delay',0))
     print(json.dumps({'id':message['id'],'ok':True,'pid':os.getpid(),'python':sys.executable,'text':message.get('text','')}),flush=True)
 `;
@@ -47,6 +48,23 @@ function engine(settings={ttsPythonPath:python}){
  const value=new TtsEngine({root:directory,dataDir:directory,modelPath:directory,getSettings:()=>settings});
  engines.push(value);return value;
 }
+
+it('reports synthesis phase and elapsed time while the worker is processing',async()=>{
+ const value=engine();const pending=value.request({op:'progress',delay:0.3});
+ await expect.poll(async()=>(await value.status()).phase).toBe('synthesizing');
+ expect(await value.status()).toMatchObject({busy:true,phase:'synthesizing'});
+ expect((await value.status()).elapsedSeconds).toBeGreaterThanOrEqual(0);
+ await pending;
+ expect(await value.status()).toMatchObject({busy:false,phase:'idle',elapsedSeconds:0});
+});
+
+it('does not retain an intentional cancellation as an engine failure',async()=>{
+ const value=engine();const controller=new AbortController();
+ const pending=value.request({op:'infer',delay:2},{signal:controller.signal}).catch(error=>error);
+ await expect.poll(async()=>(await value.status()).busy).toBe(true);
+ controller.abort();await pending;
+ expect((await value.status()).error).toBeUndefined();
+});
 
 it('does not call a bare interpreter an installed voice engine',async()=>{
  const missing=path.join(directory,'incomplete-modules');await mkdir(missing,{recursive:true});

@@ -4,7 +4,7 @@ export type Approval={id:string;tool:string;target:string;preview?:string;args?:
 export type Settings={provider:string;baseUrl:string;model:string;apiKeySet:boolean;city:string;port:number;projectDir:string;reducedMotion:boolean;speech:boolean;fullAccess:boolean;voiceModelPath?:string;voicePackId?:string;ttsPythonPath?:string;disabledSkills?:string[]};
 export type VoicePack={id:string;name:string;transcript:string;duration:number;status:'ready'|'needs-text';error?:string};
 export type VoicePacksResponse={packs:VoicePack[];selectedId:string;directory:string};
-export type TtsStatus={installed:boolean;installing:boolean;busy:boolean;error?:string;progress?:string;pythonPath?:string};
+export type TtsStatus={installed:boolean;installing:boolean;busy:boolean;error?:string;progress?:string;pythonPath?:string;phase?:string;elapsedSeconds?:number};
 export async function responseError(response:Response,fallback='请求失败'):Promise<Error>{try{const result=await response.json();return Error(result.error||fallback);}catch{return Error(fallback);}}
 export type State={settings:Settings;todos:Todo[];logs:{id:string;time:string;level:string;message:string}[];skills:{name:string;enabled:boolean}[];mcp:{name:string;connected:boolean;error?:string;count?:number}[];approvals:Approval[];history:Message[];voice:{ready:boolean;error?:string};busy:boolean;url:string;dataDir:string};
 export async function api<T=any>(url:string,body?:unknown,method=body?'POST':'GET'):Promise<T>{const response=await fetch(url,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const result=await response.json();if(!response.ok)throw Error(result.error||'请求失败');return result;}

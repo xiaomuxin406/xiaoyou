@@ -32,9 +32,9 @@
 - POST `/api/voice-packs/import?name=<MP3文件名>`，body 为原始 `audio/mpeg`，最大 15 MiB → `{pack,selectedId}`。同内容按 SHA256 去重。损坏音频拒绝；有效但转录失败允许人工填写参考文字。
 - PATCH `/api/voice-packs/:id` `{transcript}` → `{pack}`；1–2000 字符，与参考录音实际文字一致。
 - GET `/api/voice-packs/:id/audio` → `audio/mpeg`，原始音频试听。
-- GET `/api/tts/status` → `{installed,installing,busy,error?,progress,pythonPath}`。依赖检查区别完整/缺失环境。
+- GET `/api/tts/status` → `{installed,installing,busy,error?,progress,pythonPath,phase,elapsedSeconds}`。`phase` 表示启动、下载/加载模型、合成、音频保存等阶段，`elapsedSeconds` 为当前任务已用秒数；依赖检查区别完整/缺失环境。
 - POST `/api/tts/install` `{}` →202，后台启动隔离安装，客户端轮询状态；不需要管理员，不保存用户录音至外部。
-- POST `/api/tts/speak` `{text,voicePackId?}` → `audio/wav`；最多 6000 字符，省略 ID 使用已选语音包。参考 WAV、参考文字及新文字传给本机 F5-TTS。连接关闭会取消合成。
+- POST `/api/tts/speak` `{text,voicePackId?}` → `audio/wav`；最多 6000 字符，省略 ID 使用已选语音包。参考 WAV、参考文字及新文字传给本机 F5-TTS。成功音频按音色、参考文字及新文字哈希在项目 `.runtime/voice-packs/speech/` 缓存；相同内容再次请求直接播放。连接关闭会取消合成，单任务处理上限 5 分钟，客户端另设 330 秒等待上限。
 - POST `/api/tts/cancel` `{}` → `{stopped:true}`，终止当前合成进程；下次请求重新加载。全局 `/api/cancel` 同样取消语音。
 
 打包程序携带语音辅助源码和安装脚本；大型 Python 依赖和模型首次使用单独安装，未被塞入便携 EXE。模型加载使用本地缓存，首次下载需可访问模型源。
