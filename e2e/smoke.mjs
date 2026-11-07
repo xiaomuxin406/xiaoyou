@@ -1,6 +1,6 @@
 import {chromium} from '@playwright/test';
 import assert from 'node:assert/strict';
-const browser=await chromium.launch({executablePath:'C:/Users/ASUS/AppData/Local/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-win64/chrome-headless-shell.exe',headless:true});
+const browser=await chromium.launch({...(process.env.CHROME_TEST_PATH?{executablePath:process.env.CHROME_TEST_PATH}:{}),headless:true});
 const page=await browser.newPage({viewport:{width:1440,height:960}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto('http://127.0.0.1:8765');await page.getByText('主人，很高兴再见到你',{exact:true}).waitFor();
 await page.screenshot({path:'.runtime/dashboard.png',fullPage:true});

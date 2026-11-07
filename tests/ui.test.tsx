@@ -3,7 +3,7 @@ import {it,expect,vi,afterEach} from 'vitest';
 import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import App from '../src/App';
-vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
+HTMLCanvasElement.prototype.getContext=()=>null;
 afterEach(()=>{cleanup();vi.restoreAllMocks();});
 it('handles F11 through narrow desktop bridge',async()=>{
  vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({settings:{speech:false},todos:[],logs:[],skills:[],mcp:[],approvals:[],history:[],voice:{ready:false}})})));
