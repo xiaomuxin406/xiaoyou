@@ -5,6 +5,28 @@ import '@testing-library/jest-dom/vitest';
 import App from '../src/App';
 HTMLCanvasElement.prototype.getContext=()=>null;
 afterEach(()=>{cleanup();vi.restoreAllMocks();});
+it('interrupts thinking, retains partial text and returns to send mode',async()=>{
+ const state={settings:{apiKeySet:true,speech:false},todos:[],logs:[],skills:[],mcp:[],approvals:[],history:[],voice:{ready:false}};
+ let finish:((value:any)=>void)|undefined;
+ let reads=0;
+ const reader={read:async()=>{if(reads++===0)return {done:false,value:new TextEncoder().encode('event: delta\ndata: {"text":"已经生成的内容"}\n\n')};return new Promise(resolve=>{finish=resolve;});}};
+ vi.stubGlobal('fetch',vi.fn(async(url)=>{
+  if(url==='/api/chat')return {ok:true,body:{getReader:()=>reader}};
+  if(url==='/api/cancel'){finish?.({done:true});return {ok:true,json:async()=>({stopped:true})};}
+  return {ok:true,json:async()=>url==='/api/state'?state:{}};
+ }));
+ vi.stubGlobal('EventSource',class{addEventListener(){} close(){}});
+ render(<App/>);await screen.findByText('主人，很高兴再见到你');
+ await waitFor(()=>expect(screen.getByRole('button',{name:'发送消息'})).toBeEnabled());
+ fireEvent.change(screen.getByLabelText('给小优发送消息'),{target:{value:'写一段内容'}});
+ fireEvent.click(screen.getByRole('button',{name:'发送消息'}));
+ expect(await screen.findByText('已经生成的内容')).toBeVisible();
+ const interrupt=screen.getByRole('button',{name:'中断思考'});
+ expect(interrupt).toHaveTextContent('中断思考');fireEvent.click(interrupt);
+ expect(await screen.findByRole('button',{name:'发送消息'})).toBeVisible();
+ expect(screen.getByText('已经生成的内容')).toBeVisible();
+ expect(await screen.findByRole('status')).toHaveTextContent('已中断思考');
+});
 it('handles F11 through narrow desktop bridge',async()=>{
  vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({settings:{speech:false},todos:[],logs:[],skills:[],mcp:[],approvals:[],history:[],voice:{ready:false}})})));
  vi.stubGlobal('EventSource',class{addEventListener(){} close(){}});

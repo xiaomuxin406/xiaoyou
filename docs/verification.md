@@ -38,3 +38,9 @@
 ## 复现
 
 先 `npm run build`，`npm start` 保持服务，再 `node e2e/smoke.mjs`。浏览器测试需 `npx playwright install chromium`，也可设置 `CHROME_TEST_PATH` 指向测试浏览器。`node e2e/agent-flow.mjs` 会自建独立临时服务。打包后 `node e2e/desktop.mjs` 在独立 8766 端口测试，退出自己启动的实例。
+## 0.1.1 中断思考增量验收
+
+- UI 回归先出现预期失败（找不到“中断思考”按钮），实现后通过；当前 `npm test` 13 项、桌面边界测试 3 项全部通过。
+- `node e2e/interrupt.mjs`：真实本机 provider SSE + 生产构建界面，验证首 token 前取消、部分输出后取消、上游连接关闭、保留已有文字、中断后继续新对话。
+- 中断按钮显示处理状态、阻止重复点击，取消失败可重试；停止语音朗读，中断结果作为界面状态提示而不追加虚构对话记忆。
+- 本次更新不回滚已经完成的外部操作；延续现有服务端 AbortController 与待确认动作取消机制。

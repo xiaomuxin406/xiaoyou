@@ -1,5 +1,5 @@
 {
-  "name":"xiaoyou-agent","version":"0.1.0","private":true,"type":"module","main":"desktop/main.mjs",
+  "name":"xiaoyou-agent","version":"0.1.1","private":true,"type":"module","main":"desktop/main.mjs",
   "description":"小优 · 中文语音日常智能体","author":"Xiaoyou",
   "scripts":{"start":"node server/cli.mjs","dev":"vite --host 127.0.0.1","build":"tsc --noEmit && vite build","typecheck":"tsc --noEmit","test":"vitest run","test:desktop":"node --test tests/desktop.node-test.mjs","desktop":"electron .","package:win":"npm run build && electron-builder --win portable --x64"},
   "dependencies":{"@modelcontextprotocol/sdk":"^1.25.0","react":"^19.2.0","react-dom":"^19.2.0","react-markdown":"^10.1.0","ws":"^8.18.3","yauzl":"^3.2.0"},
