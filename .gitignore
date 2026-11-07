@@ -1,0 +1,16 @@
+node_modules/
+dist/
+release/
+.superpowers/
+.runtime/
+.worktrees/
+__pycache__/
+voice/build/
+voice/dist/
+voice/models/
+voice/*.spec
+config.local.json
+对话记忆.md
+*.log
+playwright-report/
+test-results/
