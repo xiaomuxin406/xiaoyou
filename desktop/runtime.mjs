@@ -12,6 +12,8 @@ export function resolveRuntime({ packaged, userData, resources, projectRoot }) {
     staticDir: packaged ? path.join(resources, 'app-ui') : path.join(projectRoot, 'dist'),
     defaultProject: packaged ? path.join(userData, 'project') : projectRoot,
     seedProject: packaged ? path.join(resources, 'defaults') : projectRoot,
+    ttsRoot: packaged ? resources : projectRoot,
+    voicePacks: packaged ? path.join(resources, 'defaults', 'voice-packs') : path.join(projectRoot, 'voice-packs'),
     voiceExecutable: packaged ? path.join(resources, 'voice', 'xiaoyou-voice.exe') : path.join(projectRoot, 'voice', 'dist', 'xiaoyou-voice', 'xiaoyou-voice.exe'),
     voiceModel: packaged ? path.join(resources, 'voice-model') : path.join(projectRoot, 'voice', 'models', 'vosk-model-small-cn-0.22'),
   };

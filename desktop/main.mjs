@@ -12,10 +12,10 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
  app.on('second-instance',()=>{win?.show();win?.focus();});
  app.whenReady().then(async()=>{try{
  const paths=resolveRuntime({packaged:app.isPackaged,userData:app.getPath('userData'),resources:process.resourcesPath,projectRoot:root});
- await mkdir(paths.defaultProject,{recursive:true});if(app.isPackaged){for(const item of ['skills','mcp.json']){try{await access(path.join(paths.defaultProject,item));}catch{await cp(path.join(paths.seedProject,item),path.join(paths.defaultProject,item),{recursive:true});}}}
+ await mkdir(paths.defaultProject,{recursive:true});if(app.isPackaged){for(const item of ['skills','mcp.json','voice-packs']){try{await access(path.join(paths.defaultProject,item));}catch{await cp(path.join(paths.seedProject,item),path.join(paths.defaultProject,item),{recursive:true});}}}
  const config=await readJson(path.join(paths.dataDir,'config.local.json'),{});
  const secretCodec={encrypt:value=>{if(!safeStorage.isEncryptionAvailable())throw Error('Windows 密钥保护不可用，无法安全保存 API Key');return safeStorage.encryptString(value).toString('base64');},decrypt:value=>safeStorage.decryptString(Buffer.from(value,'base64'))};
- server=await startServer({dataDir:paths.dataDir,projectDir:paths.defaultProject,staticDir:paths.staticDir,port:validatePort(process.env.XIAOYOU_PORT||config.port||8765),openPath:async target=>{const error=await shell.openPath(target);if(error)throw Error(error);},secretCodec,voice:r=>attachVoice(r,{executable:paths.voiceExecutable,modelPath:paths.voiceModel})});
+ server=await startServer({dataDir:paths.dataDir,projectDir:paths.defaultProject,staticDir:paths.staticDir,port:validatePort(process.env.XIAOYOU_PORT||config.port||8765),openPath:async target=>{const error=await shell.openPath(target);if(error)throw Error(error);},secretCodec,ttsRoot:paths.ttsRoot,ttsModelPath:paths.voiceModel,voice:r=>attachVoice(r,{executable:paths.voiceExecutable,modelPath:paths.voiceModel})});
  const iconPath=app.isPackaged?path.join(process.resourcesPath,'assets','icon.ico'):path.join(root,'assets','icon.ico');
  session.defaultSession.setPermissionRequestHandler((webContents,permission,callback)=>callback(permission==='media'&&navigationAllowed(webContents.getURL(),server.url)));
  session.defaultSession.setPermissionCheckHandler((webContents,permission,origin)=>permission==='media'&&navigationAllowed(origin,server.url));

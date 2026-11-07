@@ -7,6 +7,21 @@ import assert from 'node:assert/strict';
 import {startServer} from '../server/index.mjs';
 const dir=await mkdtemp(path.join(tmpdir(),'xiaoyou-e2e-'));let turn=0;
 const provider=http.createServer(async(req,res)=>{let body='';for await(const c of req)body+=c;const messages=JSON.parse(body).messages;res.writeHead(200,{'Content-Type':'text/event-stream'});const delta=messages.at(-1).role==='tool'?{content:'主人，已收到工具执行结果。'}:{tool_calls:[{index:0,id:'call_'+(++turn),type:'function',function:{name:'write_file',arguments:JSON.stringify({path:'report.txt',content:'new content'})}}]};res.end('data: '+JSON.stringify({choices:[{delta}]})+'\n\ndata: [DONE]\n\n');});
-await new Promise(r=>provider.listen(0,'127.0.0.1',r));await writeFile(path.join(dir,'config.local.json'),JSON.stringify({apiKey:'fixture',baseUrl:`http://127.0.0.1:${provider.address().port}/v1`,model:'fixture',speech:false}));await writeFile(path.join(dir,'report.txt'),'original');
+await new Promise(r=>provider.listen(0,'127.0.0.1',r));await writeFile(path.join(dir,'config.local.json'),JSON.stringify({fullAccess:false,apiKey:'fixture',baseUrl:`http://127.0.0.1:${provider.address().port}/v1`,model:'fixture',speech:false}));await writeFile(path.join(dir,'report.txt'),'original');
 const service=await startServer({dataDir:dir,projectDir:dir,staticDir:path.resolve('dist'),port:0});const browser=await chromium.launch({...(process.env.CHROME_TEST_PATH?{executablePath:process.env.CHROME_TEST_PATH}:{})});
-try{const page=await browser.newPage();await page.goto(service.url);await page.getByText('主人，很高兴再见到你',{exact:true}).waitFor();await page.getByLabel('给小优发送消息').fill('覆盖报告');await page.getByRole('button',{name:'发送消息',exact:true}).click();await page.getByRole('dialog',{name:'确认电脑操作'}).waitFor();await page.getByRole('button',{name:'拒绝',exact:true}).click();await page.getByText('主人，已收到工具执行结果。',{exact:true}).waitFor();assert.equal(await readFile(path.join(dir,'report.txt'),'utf8'),'original');await page.getByLabel('给小优发送消息').fill('允许覆盖报告');await page.getByRole('button',{name:'发送消息',exact:true}).click();await page.getByRole('dialog',{name:'确认电脑操作'}).waitFor();await page.getByRole('button',{name:'允许这次操作',exact:true}).click();await page.getByRole('button',{name:'发送消息',exact:true}).waitFor();assert.equal(await readFile(path.join(dir,'report.txt'),'utf8'),'new content');console.log('PASS real browser streaming + actual file overwrite rejection/approval');}finally{await browser.close();await service.close();await new Promise(r=>provider.close(r));await rm(dir,{recursive:true,force:true});}
+try{const page=await browser.newPage();await page.goto(service.url);await page.getByText('主人，很高兴再见到你',{exact:true}).waitFor();await page.getByLabel('给小优发送消息').fill('覆盖报告');await page.getByRole('button',{name:'发送消息',exact:true}).click();await page.getByRole('dialog',{name:'确认电脑操作'}).waitFor();await page.getByRole('button',{name:'拒绝',exact:true}).click();await page.getByText('主人，已收到工具执行结果。',{exact:true}).waitFor();assert.equal(await readFile(path.join(dir,'report.txt'),'utf8'),'original');await page.getByLabel('给小优发送消息').fill('允许覆盖报告');await page.getByRole('button',{name:'发送消息',exact:true}).click();await page.getByRole('dialog',{name:'确认电脑操作'}).waitFor();await page.getByRole('button',{name:'允许这次操作',exact:true}).click();await page.getByRole('button',{name:'发送消息',exact:true}).waitFor();assert.equal(await readFile(path.join(dir,'report.txt'),'utf8'),'new content');await page.getByRole('button',{name:'打开设置',exact:true}).click();
+ const permission=page.getByRole('checkbox',{name:/完全权限 · 自动执行/});
+ assert.equal(await permission.isChecked(),false);await permission.check();
+ await page.getByRole('button',{name:'保存设置',exact:true}).click();
+ await page.getByRole('dialog',{name:'小优设置'}).waitFor({state:'hidden'});
+ assert.equal((await service.runtime.state()).settings.fullAccess,true);
+ await writeFile(path.join(dir,'report.txt'),'automatic original');
+ await page.getByLabel('给小优发送消息').fill('自动覆盖报告');
+ await page.getByRole('button',{name:'发送消息',exact:true}).click();
+ await page.getByRole('button',{name:'发送消息',exact:true}).waitFor();
+ assert.equal(await page.getByRole('dialog',{name:'确认电脑操作'}).count(),0);
+ assert.equal(await readFile(path.join(dir,'report.txt'),'utf8'),'new content');
+ assert.equal((await service.runtime.state()).approvals.length,0);
+ await page.getByText('完全权限 · 自动执行',{exact:true}).waitFor();
+ await page.screenshot({path:'.runtime/full-access.png'});
+ console.log('PASS real browser manual rejection/approval, permission settings save, and automatic overwrite without prompts');}finally{await browser.close();await service.close();await new Promise(r=>provider.close(r));await rm(dir,{recursive:true,force:true});}

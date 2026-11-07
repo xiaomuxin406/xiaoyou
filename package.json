@@ -1,8 +1,111 @@
 {
-  "name":"xiaoyou-agent","version":"0.1.1","private":true,"type":"module","main":"desktop/main.mjs",
-  "description":"小优 · 中文语音日常智能体","author":"Xiaoyou",
-  "scripts":{"start":"node server/cli.mjs","dev":"vite --host 127.0.0.1","build":"tsc --noEmit && vite build","typecheck":"tsc --noEmit","test":"vitest run","test:desktop":"node --test tests/desktop.node-test.mjs","desktop":"electron .","package:win":"npm run build && electron-builder --win portable --x64"},
-  "dependencies":{"@modelcontextprotocol/sdk":"^1.25.0","react":"^19.2.0","react-dom":"^19.2.0","react-markdown":"^10.1.0","ws":"^8.18.3","yauzl":"^3.2.0"},
-  "devDependencies":{"@types/react":"^19.2.0","@types/react-dom":"^19.2.0","@vitejs/plugin-react":"^5.1.0","@testing-library/react":"^16.3.0","@testing-library/jest-dom":"^6.9.0","jsdom":"^27.2.0","typescript":"^5.9.0","vite":"^7.2.0","vitest":"^4.0.0","electron":"^39.2.0","electron-builder":"^26.18.0","@playwright/test":"^1.65.0"},
-  "build":{"appId":"local.xiaoyou.agent","productName":"小优","directories":{"output":"release"},"files":["desktop/**/*","server/**/*","package.json"],"extraResources":[{"from":"dist","to":"app-ui"},{"from":"skills","to":"defaults/skills"},{"from":"mcp.json","to":"defaults/mcp.json"},{"from":"assets","to":"assets"},{"from":"voice/dist/xiaoyou-voice","to":"voice"},{"from":"voice/models/vosk-model-small-cn-0.22","to":"voice-model"},{"from":"voice/LICENSE-VOSK.txt","to":"voice/LICENSE-VOSK.txt"}],"win":{"icon":"assets/icon.ico","target":"portable","signAndEditExecutable":false},"portable":{"artifactName":"Xiaoyou-${version}-win-x64.exe"}}
+  "name": "xiaoyou-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "desktop/main.mjs",
+  "description": "小优 · 中文语音日常智能体",
+  "author": "Xiaoyou",
+  "scripts": {
+    "start": "node server/cli.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:desktop": "node --test tests/desktop.node-test.mjs",
+    "desktop": "electron .",
+    "package:win": "npm run build && electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
+    "ws": "^8.18.3",
+    "yauzl": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/jest-dom": "^6.9.0",
+    "jsdom": "^27.2.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.2.0",
+    "vitest": "^4.0.0",
+    "electron": "^39.2.0",
+    "electron-builder": "^26.18.0",
+    "@playwright/test": "^1.65.0"
+  },
+  "build": {
+    "appId": "local.xiaoyou.agent",
+    "productName": "小优",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "server/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist",
+        "to": "app-ui"
+      },
+      {
+        "from": "defaults/skills",
+        "to": "defaults/skills"
+      },
+      {
+        "from": "defaults/mcp.json",
+        "to": "defaults/mcp.json"
+      },
+      {
+        "from": "voice-packs",
+        "to": "defaults/voice-packs",
+        "filter": [
+          "README.md",
+          "builtin.json",
+          "builtin.wav",
+          "ttsmaker-file-2026-11-7-20-30-54.mp3"
+        ]
+      },
+      {
+        "from": "voice",
+        "to": "voice",
+        "filter": [
+          "tts_worker.py",
+          "requirements-tts.txt",
+          "install-tts.ps1",
+          "README.md"
+        ]
+      },
+      {
+        "from": "assets",
+        "to": "assets"
+      },
+      {
+        "from": "voice/dist/xiaoyou-voice",
+        "to": "voice"
+      },
+      {
+        "from": "voice/models/vosk-model-small-cn-0.22",
+        "to": "voice-model"
+      },
+      {
+        "from": "voice/LICENSE-VOSK.txt",
+        "to": "voice/LICENSE-VOSK.txt"
+      }
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": "portable",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "Xiaoyou-${version}-win-x64.exe"
+    }
+  }
 }

@@ -26,3 +26,11 @@ credentials.json
 secrets.json
 .venv/
 venv/
+
+# Private imported voice packs and generated audio stay local.
+voice-packs/*
+!voice-packs/README.md
+!voice-packs/ttsmaker-file-2026-11-7-20-30-54.mp3
+!voice-packs/builtin.json
+!voice-packs/builtin.wav
+/ttsmaker-file-*.mp3
