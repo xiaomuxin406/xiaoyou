@@ -14,6 +14,7 @@
 - `node e2e/agent-flow.mjs`：实际浏览器 UI + 本地 provider fixture 流式回复，拒绝覆盖保持原内容，再确认覆盖写入新内容。没有调用付费模型。
 - `node e2e/desktop.mjs`：打包后的 `win-unpacked/小优.exe` 启动自动全屏，Esc 离开、F11 恢复，中文问候和内置模型路径检查通过，桌面截图已目视检查。
 - `npm run package:win`：生成 `release/Xiaoyou-0.1.0-win-x64.exe` 便携式分发文件；内含离线模型、Python 运行时及语音辅助 exe，无需最终用户另装 Python。
+- 最终单文件便携 exe 已直接启动，8765 页面和 API 正常，`voice.ready=true`，初始“小优” Skill 已载入；构建文件 149,685,628 字节，SHA256 `b3a9332e9fcb8d4a217a03f0a817533983ddcef3a6414fdb52c301230bb49c67`。
 
 ## 审查与已处理问题
 
