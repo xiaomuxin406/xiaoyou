@@ -1,0 +1,2 @@
+vosk==0.3.45
+pyinstaller==6.22.3
