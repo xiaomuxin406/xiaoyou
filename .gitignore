@@ -14,3 +14,15 @@ config.local.json
 *.log
 playwright-report/
 test-results/
+.env
+.env.*
+!.env.example
+*.local.json
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+.venv/
+venv/
